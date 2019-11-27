@@ -20,7 +20,7 @@ def load_staging_tables(cur, conn):
 
 def insert_tables(cur, conn):
     """
-    Run queries that take data from staging tables and inserts them into 
+    Run queries that take data from staging tables and inserts them into
     tables in star schema
     Parameters
     ----------
@@ -50,9 +50,12 @@ def main():
     config = configparser.ConfigParser()
     config.read('dwh.cfg')
 
-    conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format(*config['CLUSTER'].values()))
+    conn = psycopg2.connect(
+        "host={} dbname={} user={} password={} port={}"
+        .format(*config['CLUSTER'].values())
+    )
     cur = conn.cursor()
-    
+
     load_staging_tables(cur, conn)
     insert_tables(cur, conn)
 

@@ -13,12 +13,12 @@ set_pointer = "SET search_path TO sparkify;"
 # DROP TABLES
 
 staging_events_table_drop = "DROP TABLE IF EXISTS events;"
-staging_songs_table_drop  = "DROP TABLE IF EXISTS songs;"
-songplay_table_drop       = "DROP TABLE IF EXISTS songplay;"
-user_table_drop           = "DROP TABLE IF EXISTS users;"
-song_table_drop           = "DROP TABLE IF EXISTS songs_table;"
-artist_table_drop         = "DROP TABLE IF EXISTS artists;"
-time_table_drop           = "DROP TABLE IF EXISTS time_table;"
+staging_songs_table_drop = "DROP TABLE IF EXISTS songs;"
+songplay_table_drop = "DROP TABLE IF EXISTS songplay;"
+user_table_drop = "DROP TABLE IF EXISTS users;"
+song_table_drop = "DROP TABLE IF EXISTS songs_table;"
+artist_table_drop = "DROP TABLE IF EXISTS artists;"
+time_table_drop = "DROP TABLE IF EXISTS time_table;"
 
 # CREATE TABLES
 
@@ -63,11 +63,11 @@ CREATE TABLE songs (
 songplay_table_create = ("""
 CREATE TABLE songplay (
     songplay_id  INTEGER IDENTITY(0, 1),
-    start_time   TIMESTAMP,
-    user_id      VARCHAR(MAX),
+    start_time   TIMESTAMP NOT NULL,
+    user_id      VARCHAR(MAX) NOT NULL,
     level        VARCHAR(MAX),
-    song_id      VARCHAR(MAX),
-    artist_id    VARCHAR(MAX),
+    song_id      VARCHAR(MAX) NOT NULL,
+    artist_id    VARCHAR(MAX) NOT NULL,
     session_id   VARCHAR(MAX),
     location     VARCHAR(MAX),
     user_agent   VARCHAR(MAX)
@@ -76,7 +76,7 @@ CREATE TABLE songplay (
 
 user_table_create = ("""
 CREATE TABLE users (
-    user_id     INTEGER NOT NULL,
+    user_id     INTEGER NOT NULL distkey,
     first_name  VARCHAR(MAX),
     last_name   VARCHAR(MAX),
     gender      VARCHAR(MAX),
@@ -86,9 +86,9 @@ CREATE TABLE users (
 
 song_table_create = ("""
 CREATE TABLE songs_table (
-    song_id    VARCHAR(MAX),
+    song_id    VARCHAR(MAX) distkey,
     title      VARCHAR(MAX),
-    artist_id  VARCHAR(MAX),
+    artist_id  VARCHAR(MAX) NOT NULL,
     year       INTEGER,
     duration   DECIMAL(9, 5)
 )
@@ -96,7 +96,7 @@ CREATE TABLE songs_table (
 
 artist_table_create = ("""
 CREATE TABLE artists (
-    artist_id  VARCHAR(MAX),
+    artist_id  VARCHAR(MAX) distkey,
     name       VARCHAR(MAX),
     location   VARCHAR(MAX),
     latitude   DECIMAL(7, 4),
@@ -106,7 +106,7 @@ CREATE TABLE artists (
 
 time_table_create = ("""
 CREATE TABLE time_table (
-    start_time  TIMESTAMP,
+    start_time  TIMESTAMP distkey,
     hour        INTEGER,
     day         VARCHAR(MAX),
     week        INTEGER,
@@ -124,7 +124,7 @@ IAM_ROLE = config['IAM_ROLE']['ARN']
 
 
 staging_events_copy = ("""
-    COPY events FROM {} 
+    COPY events FROM {}
     CREDENTIALS 'aws_iam_role={}'
     FORMAT AS JSON {} timeformat 'epochmillisecs';
 """).format(S3_LOG_DATA_TABLE, IAM_ROLE, LOG_JSONPATH)
@@ -139,7 +139,13 @@ JSON 'auto'
 
 songplay_table_insert = ("""
 INSERT INTO songplay (
-  start_time, user_id, level, song_id, artist_id, session_id, location, user_agent
+  start_time,
+  user_id, level,
+  song_id,
+  artist_id,
+  session_id,
+  location,
+  user_agent
 )
 SELECT DISTINCT
     e.ts AS start_time,
@@ -164,8 +170,9 @@ SELECT DISTINCT
     lastname AS last_name,
     gender,
     level
-FROM sparkify."events"
+FROM sparkify."events" AS e
 WHERE user_id IS NOT NULL
+AND e.page = 'NextSong'
 """)
 
 song_table_insert = ("""
@@ -205,7 +212,35 @@ FROM sparkify."events"
 
 # QUERY LISTS
 
-create_table_queries = [staging_events_table_create, staging_songs_table_create, songplay_table_create, user_table_create, song_table_create, artist_table_create, time_table_create]
-drop_table_queries = [create_schema, set_pointer, staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
-copy_table_queries = [set_pointer, staging_events_copy, staging_songs_copy]
-insert_table_queries = [songplay_table_insert, user_table_insert, song_table_insert, artist_table_insert, time_table_insert]
+create_table_queries = [
+    staging_events_table_create,
+    staging_songs_table_create,
+    songplay_table_create,
+    user_table_create,
+    song_table_create,
+    artist_table_create,
+    time_table_create
+]
+drop_table_queries = [
+    create_schema,
+    set_pointer,
+    staging_events_table_drop,
+    staging_songs_table_drop,
+    songplay_table_drop,
+    user_table_drop,
+    song_table_drop,
+    artist_table_drop,
+    time_table_drop
+]
+copy_table_queries = [
+    set_pointer,
+    staging_events_copy,
+    staging_songs_copy
+]
+insert_table_queries = [
+    songplay_table_insert,
+    user_table_insert,
+    song_table_insert,
+    artist_table_insert,
+    time_table_insert
+]
